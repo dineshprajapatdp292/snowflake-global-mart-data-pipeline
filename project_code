@@ -50,6 +50,9 @@ create or replace schema global_mart_db.integrations ;
 
 create or replace schema global_mart_db.raw ;
 
+
+
+
 create or replace schema global_mart_db.marts ;
 
 --  after create warehouses for Separate compute for ingestion vs
@@ -161,14 +164,33 @@ FROM @global_mart_db.integrations.stg_pos
 )
 FILE_FORMAT = (
     format_name = 'global_mart_db.integrations.csv_format'
-);
+)
+on_error='continue'
+;
+
+select * from  global_mart_db.raw.csv_pos_transactions_raw;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 desc pipe  global_mart_db.integrations.csv_pipe;
 
+select system$pipe_status('global_mart_db.integrations.csv_pipe')
 
 ALTER PIPE global_mart_db.integrations.csv_pipe REFRESH;
- 
+ -- truncate table global_mart_db.raw.csv_pos_transactions_raw;
 select * from  global_mart_db.raw.csv_pos_transactions_raw;
 
 
@@ -292,7 +314,8 @@ create or replace table global_mart_db.raw.parquet_erp_raw_table(
        supplier_city string , 
        product_sku string,
        category string ,
-       unit_cost int , 
+       unit_cost int ,
+       total_cost int,
        quantity_ordered int,
        quantity_received int,
        order_status string ,
@@ -327,6 +350,7 @@ create or replace file format global_mart_db.integrations.paraquet_file_format
         $1:product_sku::varchar,
         $1:category::varchar,
         $1:unit_cost::int,
+        $1:total_cost::int,
         $1:quantity_ordered ::int,
         $1:quantity_received::int,
         $1:order_status::varchar,
@@ -349,32 +373,18 @@ select system$pipe_status('global_mart_db.integrations.parauqet_pipe');
 
 desc pipe global_mart_db.integrations.parauqet_pipe ;
 
+ -- truncate table global_mart_db.raw.parquet_erp_raw_table; 
  select * from global_mart_db.raw.parquet_erp_raw_table;
 
 alter pipe global_mart_db.integrations.parauqet_pipe refresh;
  
-select * from @global_mart_db.integrations.stg_erp/erp_inventory.parquet;
+select $1 from @global_mart_db.integrations.stg_erp;
 
 
 
 select system$pipe_Status('global_mart_db.integrations.parauqet_pipe') ;
        
 alter pipe  global_mart_db.integrations.parauqet_pipe refresh ;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -434,10 +444,10 @@ create or replace table global_mart_db.staging.stg_csv_transaction(
 select * from global_mart_db.staging.stg_csv_transaction ;
 
 
-SELECT transaction_id, COUNT(*)
-FROM global_mart_db.staging.stg_csv_transaction
-GROUP BY transaction_id
-HAVING COUNT(*) > 1;
+-- SELECT transaction_id, COUNT(*)
+-- FROM global_mart_db.staging.stg_csv_transaction
+-- GROUP BY transaction_id
+-- HAVING COUNT(*) > 1; to check primary key
 
 
 
@@ -528,7 +538,7 @@ loyalty_points,
 
 
     
- 0 as line_total,
+   quantity*(( unit_price) -(unit_price*discount_pct/100))  as line_total,
 
     CURRENT_TIMESTAMP() AS processing_time,
 METADATA$ACTION, 
@@ -640,7 +650,7 @@ update global_mart_db.staging.stg_csv_transaction set line_total;
 
 
 
-
+-- truncate table global_mart_db.staging.stg_csv_transaction;
 select * from global_mart_db.staging.stg_csv_transaction;
 
 
@@ -737,7 +747,7 @@ alter task global_mart_db.utilities.json_task_silver suspend;
 -- create silver  table for parquet 
 
 create or replace table global_mart_db.staging.stg_parquet_erp(
-         order_id varchar,
+         order_id string,
        order_date timestamp ,
        store_id varchar ,
        supplier_id varchar ,
@@ -747,6 +757,7 @@ create or replace table global_mart_db.staging.stg_parquet_erp(
        product_sku string,
        category string ,
        unit_cost int , 
+       total_cost int,
        quantity_ordered int,
        quantity_received int,
        order_status string ,
@@ -780,6 +791,7 @@ select
      product_sku,
      category,
      unit_cost,
+     total_cost,
      quantity_ordered ,
      quantity_received,
      order_status,
@@ -796,7 +808,7 @@ select
 
         when not matched then 
            insert(
-                    
+       order_id,             
        order_date  ,
        store_id  ,
        supplier_id  ,
@@ -806,6 +818,7 @@ select
        product_sku,
        category  ,
        unit_cost  , 
+       total_cost,
        quantity_ordered ,
        quantity_received ,
        order_status  ,
@@ -817,7 +830,7 @@ select
        processing_time 
            )
            values(
-        
+        order_id,
        str.order_date  ,
        str.store_id  ,
        str.supplier_id  ,
@@ -827,6 +840,7 @@ select
        str.product_sku,
        str.category  ,
        str.unit_cost  , 
+       str.total_cost,
        str.quantity_ordered ,
        str.quantity_received ,
        str.order_status  ,
@@ -843,7 +857,7 @@ select
 alter task global_mart_db.utilities.task_parquet_silver resume;
 alter task global_mart_db.utilities.task_parquet_silver suspend;
 
-select * from global_mart_db.staging.stg_parquet_erp
+select * from global_mart_db.staging.stg_parquet_erp;
 
 
 select * from global_mart_db.staging.stg_parquet_erp;
@@ -851,7 +865,7 @@ select * from global_mart_db.staging.stg_parquet_erp;
 
 show tasks;
 
-select * from global_mart_db.staging.stg_parquet_er as pa;
+select * from global_mart_db.staging.stg_parquet_erp ;
 
            
 select * from global_mart_db.staging.stg_json_sensor;
@@ -868,55 +882,181 @@ select c.store_id from global_mart_db.staging.stg_csv_transaction as c left join
 create or replace schema global_mart_db.marts ;
 
 
-select * from global_mart_db.staging.stg_csv_transaction;
+select count(transaction_id ), count( distinct transaction_id) from global_mart_db.staging.stg_csv_transaction;
 
 
-create or replace table global_mart_db.marts.daily_sales_fact(
- report_date timestamp,--*
- store_id string,
- store_city string,
- store_name string,
- category string,
- total_revenue_generated int,
- Store_region string,
- total_units_sold int,
- total_transaction_done int,--*
- average_cart_size int,--*
- total_unique_customer int,
- date_update date) --*
- ;
+-- create or replace table global_mart_db.marts.daily_sales_fact(
+--  report_date timestamp,--
+--  store_id string,
+--  store_city string,
+--  store_name string,
+--  category string,
+--  total_revenue_generated int,
+--  Store_region string,
+--  total_units_sold int,
+--  total_transaction_done int,--
+--  average_cart_size int,--*
+--  total_unique_customer int,
+--  date_update date) --
+--  ;
 
 
-insert into global_mart_db.marts.daily_sales_fact; 
+create or replace table  global_mart_db.marts.daily_sales_fact as 
   select 
-          store_id string,
-          store_city string,
-          store_name string,
-          category string,
-          Store_region string,
-          sum(Total_amount) as  total_revenue_generated,  -- Net Revenue: (Units Sold × Price) - Returns - Discounts - Allowances
+          transaction_date as report_date,
+          Store_region,
+          store_city ,
+          store_name,
+          store_id,
+          category ,
+          
+          sum(line_total) as  total_revenue_generated,  --  Revenue: (Units Sold × Price) -  Discounts  
            sum(quantity) as total_units_sold ,
-            sum(Total_amount) as total_transaction_done,
-             count(distinct customer_id) as total_unique_customer
+            count(transaction_id) as total_transaction_done,
+            avg(line_total) as average_cart_size,
+             count(distinct customer_id) as total_unique_customer,
+             current_date as date_update
              
-
-
           from  global_mart_db.staging.stg_csv_transaction
-          group by store_id , store_city , store_name ,category,Store_region;
+          group by transaction_date ,Store_region,store_city ,store_name,store_id  , category  order by transaction_date,store_id;
+          
+ select * from global_mart_db.marts.daily_sales_fact;
+
+-- create table => gross_margin_fact
+
+select * from global_mart_db.staging.stg_csv_transaction order by store_id , category;
+select * from global_mart_db.staging.stg_json_sensor ;
 
 
---  create table => gross_margin_fact
+select * from global_mart_db.staging.stg_parquet_erp order by store_id , category; --- primary_key=>(order_id)
 
-create or replace table global_mart_db.marts.gross_margin_fact(
-     store_name string,
-     category string,
-     total_revenue_generated int,
-     total_cost_generated int ,
-     gross_profit_margin int,
-     gross_margin_%_ int, 
-     number_of_unit_sold int , 
-     total_unique_order int,
-     date_update date );
+
+-- select sum(total_amount),sum(line_total),count(transaction_id),count(customer_id) from global_mart_db.staging.stg_csv_transaction;
+-- select * from global_mart_db.staging.stg_parquet_erp where order_status='Delivered';
+
+
+-- select  store_id,store_city,category, sum(total_amount) from global_mart_db.staging.stg_csv_transaction  group by store_id,store_city,category order by store_id ,store_city,category ;
+
+
+-- select store_id,store_city,category, sum(total_cost) from global_mart_db.staging.stg_parquet_erp group by store_id,store_city,category order by store_id,store_city,category ;
+
+
+-- select store_city,category , sum(total_cost), from  global_mart_db.staging.stg_parquet_erp group by store_city,category  order by store_city,category ;
+
+
+
+-- select store_city,category,sum(total_amount),sum(quantity) as total_unites_sold ,count(distinct customer_id)   from global_mart_db.staging.stg_csv_transaction group by store_city,category;
+
+
+-- create or replace table global_mart_db.marts.gross_margin_fact(
+--      store_name string,--csv
+--      category string,--csv
+--      total_revenue_generated int,--csv
+--      total_cost_generated int ,-- parque
+--      gross_profit_margin int,-- parque + csv
+--      gross_margin_percentage int,--parque+csv 
+--      number_of_unit_sold int , --csv
+--      total_unique_order int,--parque
+--      date_update date );-- current_date()
+
+
+
+
+-- select store_city,category , sum(total_cost), from  global_mart_db.staging.stg_parquet_erp group by store_city,category  order by store_city,category ;
+
+-- select store_city,category,sum(total_amount),count(*),count(distinct customer_id)   from global_mart_db.staging.stg_csv_transaction group by store_city,category;
+
+
+
+
+
+
+
+-- select p.store_id,p.category, sum(total_amount),sum(total_cost) from global_mart_db.staging.stg_parquet_erp as p join global_mart_db.staging.stg_csv_transaction as c on lower(trim(p.store_id))=lower(trim(c.store_id)) and lower(trim(p.category))=lower(trim(c.category)) where p.order_status='Delivered'   group by p.store_id,p.category order by p.store_id,p.category;
+
+--- join on csv,parque
+---------------------------------------------------------------------------------------------------
+-- select * from  global_mart_db.staging.stg_parquet_erp as p join  global_mart_db.staging.stg_csv_transaction as c on p.store_id=c.store_id and p.category=c.category  ;
+
+-- select store_city,category,sum(total_amount),count(*),count(distinct customer_id)   from global_mart_db.staging.stg_csv_transaction group by store_city,category;
+
+
+-- select store_id,store_name, category,sum(line_total) as total_revenue ,sum(quantity) as total_unites_sold,count(distinct customer_id) as unique_customer_id   from global_mart_db.staging.stg_csv_transaction group by store_id ,store_name,category;
+
+--  select * from  global_mart_db.staging.stg_parquet_erp;
+-- -- select store_id,category , avg(unit_cost) as per_item_cost from  global_mart_db.staging.stg_parquet_erp group by store_id,category  order by store_id,category;
+
+-- select store_id,store_name, category,sum(line_total) as line_total ,sum(quantity) as number_of_unites_sold,count(distinct customer_id) as unique_customer_id   from global_mart_db.staging.stg_csv_transaction group by store_id ,store_name,category;
+
+------------------------------------------------------------------------------------------
+create or replace table global_mart_db.marts.gross_margin_fact as
+with csv_cte as (
+select store_id,store_name, category,sum(line_total) as line_total ,sum(quantity) as number_of_unites_sold,count(distinct customer_id) as unique_customer_id   from global_mart_db.staging.stg_csv_transaction group by store_id ,store_name,category)
+,
+ parque_cte as (
+select store_id , category , avg(unit_cost) as per_item_cost from  global_mart_db.staging.stg_parquet_erp group by store_id,category  order by store_id,category)
+
+ 
+select
+  p.store_id,
+  c.store_name,
+  p.category,
+  c.line_total as total_revenue_generated,
+   c.number_of_unites_sold *p.per_item_cost as  total_cost_generated,
+  (c.line_total -total_cost_generated) as gross_profit_margin ,
+  (gross_profit_margin/total_revenue_generated)*100 as gross_margin_percentage,
+  c.number_of_unites_sold,
+   c.unique_customer_id 
+  from csv_cte as c   
+  join parque_cte as p 
+  on  LOWER(trim(p.store_id)) = LOWER(trim(c.store_id))  
+  and LOWER(trim(p.category)) = LOWER(trim(c.category))  
+  order by  c.store_id,p.category;
+
+select * from global_mart_db.marts.gross_margin_fact;
+
+select * from global_mart_db.staging.stg_parquet_erp;
+
+select * from global_mart_db.staging.stg_csv_transaction;
+  
+--  iot_table
+
+-- create or replace table global_mart_db.marts.fact_iot_sensor(
+--  store_id string, 
+--  store_name string,
+--  average_fitball float ,
+--  average_weight float,
+--  avg_temp float
+-- );
+
+select * from global_mart_db.staging.stg_csv_transaction order by store_id , category;
+select  * from global_mart_db.staging.stg_json_sensor ;
+
+
+create or replace table json_iot_pivot_table as 
+select 
+ store_id ,  store_name ,
+ avg( case when  sensor_name='footfall' then sensor_value  else 0 end) as average_football, 
+ avg( case when  sensor_name='weight_kg' then sensor_value else 0 end) as average_weight,
+ avg( case when  sensor_name='temp_c' then sensor_value else 0 end) as avg_temp 
+ from global_mart_db.staging.stg_json_sensor group by store_id ,store_name;
+
+select * from json_iot_pivot_table ;
+
+select *  from global_mart_db.staging.stg_csv_transaction;
+
+
+create or replace table global_mart_db.marts.fact_iot_sensor as 
+ select c.*, j.average_football, j.average_weight, j.avg_temp from global_mart_db.staging.stg_csv_transaction as c join json_iot_pivot_table as j on c.store_id=j.store_id and c.store_name=j.store_name;
+
+
+
+select * from global_mart_db.marts.fact_iot_sensor;
+
+
+ 
+
+     
 
      
 
