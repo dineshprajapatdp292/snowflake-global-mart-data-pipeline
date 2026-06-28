@@ -49,3 +49,154 @@ This project ingests data from multiple enterprise systems to simulate a real-wo
 | POS Transactions | CSV | Retail sales, customers, products, and payments |
 | IoT Sensor Events | JSON | Store temperature, humidity, footfall, and sensor events |
 | ERP / Supply Chain | Parquet | Orders, inventory, suppliers, warehouses, and returns |
+
+---
+
+# 📂 Project Structure
+
+```
+snowflake-global-mart-data-pipeline/
+│
+├── architecture/
+│   ├── architecture.png
+│   └── README.md
+│
+├── project_code/
+│   ├── 01_storage_integration.sql
+│   ├── 02_file_formats.sql
+│   ├── 03_stages.sql
+│   ├── 04_tables.sql
+│   ├── 05_snowpipe.sql
+│   ├── 06_streams.sql
+│   ├── 07_tasks.sql
+│   ├── 08_transformations.sql
+│   └── 09_powerbi_views.sql
+│
+├── README.md
+```
+---
+
+# ⚙️ Pipeline Workflow
+
+The project follows a modern Medallion Architecture (Bronze → Silver → Gold) to ingest, transform, and serve data for analytics.
+
+| Step | Description |
+|------|-------------|
+| 1 | CSV, JSON, and Parquet files are uploaded to Amazon S3. |
+| 2 | Snowflake Storage Integration securely connects Snowflake to Amazon S3. |
+| 3 | External Stages provide access to source files. |
+| 4 | Snowpipe automatically ingests new files into the Bronze layer. |
+| 5 | Bronze tables store raw data exactly as received. |
+| 6 | Streams capture inserted and updated records (CDC). |
+| 7 | Tasks execute SQL transformations automatically. |
+| 8 | Silver layer cleans, validates, and standardizes the data. |
+| 9 | Gold layer creates business-ready fact and dimension tables. |
+| 10 | Power BI connects to Gold tables for dashboards and reporting. |
+
+## Pipeline Flow
+
+```text
+CSV / JSON / Parquet
+        │
+        ▼
+Amazon S3
+        │
+        ▼
+Storage Integration
+        │
+        ▼
+Snowflake External Stage
+        │
+        ▼
+Snowpipe
+        │
+        ▼
+Bronze Layer (RAW)
+        │
+        ▼
+Streams (CDC)
+        │
+        ▼
+Tasks (Automation)
+        │
+        ▼
+Silver Layer
+        │
+        ▼
+Gold Layer
+        │
+        ▼
+Power BI Dashboard
+```
+
+---
+
+# 🗄️ Database Objects
+
+The project uses the following Snowflake objects to build a complete automated data pipeline.
+
+| Object | Purpose |
+|---------|---------|
+| Database | Stores all project data and objects |
+| Schema | Organizes project objects into logical groups |
+| Storage Integration | Securely connects Snowflake to Amazon S3 |
+| File Formats | Defines how CSV, JSON, and Parquet files are read |
+| External Stages | References data stored in Amazon S3 |
+| Snowpipe | Automatically loads newly arrived files |
+| Bronze Tables | Stores raw source data |
+| Streams | Captures Change Data Capture (CDC) events |
+| Tasks | Automates SQL transformations |
+| Silver Tables | Stores cleaned and validated data |
+| Gold Tables | Stores business-ready analytical data |
+| Views | Provides simplified access for reporting |
+
+---
+
+# ✨ Project Features
+
+- End-to-End Data Engineering Pipeline
+- Supports CSV, JSON, and Parquet file formats
+- Automated file ingestion using Snowpipe
+- Secure Amazon S3 integration
+- Bronze, Silver, and Gold Medallion Architecture
+- Change Data Capture (CDC) using Streams
+- Automated SQL transformations using Tasks
+- Scalable cloud-native architecture
+- Business-ready analytical data marts
+- Interactive Power BI dashboards
+
+- ---
+
+# 📈 Business Use Cases
+
+This project demonstrates how a retail organization can build a scalable analytics platform.
+
+Example business insights include:
+
+- Daily Sales Analysis
+- Product Performance
+- Store Performance
+- Customer Purchasing Trends
+- Gross Margin Analysis
+- Inventory Analytics
+- IoT Sensor Monitoring
+- Executive Dashboards
+
+- ---
+
+# 👨‍💻 Author
+
+**Dinesh Prajapat**
+
+Data Engineer | Snowflake | SQL | Python | Azure | AWS
+
+GitHub:
+https://github.com/dineshprajapatdp292
+
+LinkedIn:
+www.linkedin.com/in/dinesh-prajapat-704678331
+
+---
+⭐ If you found this project helpful, don't forget to star the repository.
+
+- 
