@@ -12,6 +12,14 @@ The pipeline processes structured and semi-structured data from CSV, JSON, and P
 
 The objective of this project is to demonstrate modern Data Engineering concepts, including automated ingestion, Change Data Capture (CDC), scheduled transformations, and scalable cloud data warehousing.
 
+---
+# 🏗️ Architecture
+
+The following architecture illustrates the complete end-to-end data flow from data ingestion to business reporting.
+
+![Architecture](architecture/architecture.png)
+
+---
 
 # 🛠️ Technology Stack
 
