@@ -1,6 +1,8 @@
 # 🚀 Snowflake Global Mart Data Pipeline
 ![Snowflake](https://img.shields.io/badge/Snowflake-29B5E8?logo=snowflake&logoColor=white)
 
+![AWS IAM](https://img.shields.io/badge/AWS-IAM-FF9900?logo=amazonaws&logoColor=white)
+
 ![AWS S3](https://img.shields.io/badge/AWS-S3-orange?logo=amazonaws)
 
 ![SQL](https://img.shields.io/badge/SQL-Database-blue)
